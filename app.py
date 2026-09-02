@@ -26,7 +26,7 @@ app.logger.info('Iniciando aplicación de Asistente de Stock...')
 # ==========================================
 # 2. CONFIGURACIÓN DE GOOGLE SHEETS
 # ==========================================
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUl-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUI-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
 
 def obtener_datos_stock():
     try:
@@ -145,7 +145,9 @@ def webhook():
         try:
             productos_lista = []
             for index, row in df.iterrows():
-                productos_lista.append(f"• {row.iloc[0]} - ${row.iloc[1]}")
+                # .capitalize() pone la primera letra en mayúscula automáticamente
+                producto_nombre = str(row.iloc[0]).strip().capitalize()
+                productos_lista.append(f"• {producto_nombre} - Cantidad: {row.iloc[2]} - Precio: ${row.iloc[1]}")
             response_text = "<b>Catálogo disponible:</b><br>" + "<br>".join(productos_lista)
         except Exception as e:
             app.logger.error(f"Error procesando el formato del catálogo: {str(e)}")
@@ -155,7 +157,8 @@ def webhook():
         if not match.empty:
             resultados = []
             for index, row in match.iterrows():
-                resultados.append(f"<b>{row.iloc[0]}</b>: Cantidad: {row.iloc[2]} | Precio: ${row.iloc[1]}")
+                producto_nombre = str(row.iloc[0]).strip().capitalize()
+                resultados.append(f"<b>{producto_nombre}</b>: Cantidad: {row.iloc[2]} | Precio: ${row.iloc[1]}")
             response_text = "<br>".join(resultados)
         else:
             response_text = f"No encontré productos que coincidan con '{user_message}'. Escribe 'cat' para ver el catálogo completo."
