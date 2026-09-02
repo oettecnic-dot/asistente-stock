@@ -1,4 +1,4 @@
-import os
+ import os
 import logging
 from logging.handlers import RotatingFileHandler
 import pandas as pd
@@ -26,7 +26,6 @@ app.logger.info('Iniciando aplicación de Asistente de Stock...')
 # ==========================================
 # 2. CONFIGURACIÓN DE GOOGLE SHEETS
 # ==========================================
-# Reemplaza esta URL con tu enlace CSV público de Google Sheets actualizado
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUI-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
 
 def obtener_datos_stock():
@@ -124,21 +123,25 @@ def webhook():
     if data and "message" in data:
         user_message = data.get("message", "").strip().lower()
     else:
-        # Soporte para Twilio / WhatsApp Sandbox si se usa externamente
         user_message = request.values.get("Body", "").strip().lower()
 
     app.logger.info(f"Mensaje recibido del usuario: {user_message}")
 
-    # Lógica de respuesta del bot
-    df = obtener_datos_stock()
+    # Lista de saludos para evitar llamadas a Google Sheets
+    saludos = ['hola', 'buendia', 'buen dia', 'buenas', 'hi', 'hello']
 
+    if user_message in saludos:
+        response_text = "¡Hola! 😊 ¿Qué producto deseas consultar hoy o prefieres ver el catálogo completo?"
+        return jsonify({"message": response_text})
+
+    df = obtener_datos_stock()
+    
     if df is None:
         return jsonify({"message": "Ocurrió un error al conectar con Google Sheets. Por favor, intenta más tarde."})
 
     response_text = ""
 
     if "cat" in user_message or "catalogo" in user_message or "catálogo" in user_message:
-        # Muestra un resumen de los productos disponibles en la planilla
         try:
             productos_lista = []
             for index, row in df.iterrows():
@@ -148,7 +151,6 @@ def webhook():
             app.logger.error(f"Error procesando el formato del catálogo: {str(e)}")
             response_text = "Hubo un problema al leer las columnas de la planilla."
     else:
-        # Búsqueda simple de productos (Cantidad en 2do lugar y Precio en 3er lugar)
         match = df[df.astype(str).apply(lambda x: x.str.contains(user_message, case=False)).any(axis=1)]
         if not match.empty:
             resultados = []
@@ -162,4 +164,3 @@ def webhook():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
