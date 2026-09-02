@@ -31,6 +31,8 @@ SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMh
 def obtener_datos_stock():
     try:
         df = pd.read_csv(SHEET_CSV_URL)
+        # Limpiar espacios en los nombres de las columnas por seguridad
+        df.columns = df.columns.str.strip()
         app.logger.info("Datos de Google Sheets cargados exitosamente.")
         return df
     except Exception as e:
@@ -127,7 +129,7 @@ def webhook():
 
     app.logger.info(f"Mensaje recibido del usuario: {user_message}")
 
-    # Lista de saludos para evitar llamadas a Google Sheets
+    # Lista de saludos
     saludos = ['hola', 'buendia', 'buen dia', 'buenas', 'hi', 'hello']
 
     if user_message in saludos:
@@ -136,29 +138,38 @@ def webhook():
 
     df = obtener_datos_stock()
     
-    if df is None:
-        return jsonify({"message": "Ocurrió un error al conectar con Google Sheets. Por favor, intenta más tarde."})
+    if df is None or df.empty:
+        return jsonify({"message": "Ocurrió un error al conectar con Google Sheets. Por favor, verifica el enlace o intenta más tarde."})
 
     response_text = ""
+
+    # Asumimos las columnas por su posición segura (0: Producto, 1: Precio, 2: Cantidad)
+    col_producto = df.columns[0]
+    col_precio = df.columns[1]
+    col_cantidad = df.columns[2]
 
     if "cat" in user_message or "catalogo" in user_message or "catálogo" in user_message:
         try:
             productos_lista = []
             for index, row in df.iterrows():
-                # .capitalize() pone la primera letra en mayúscula automáticamente
-                producto_nombre = str(row.iloc[0]).strip().capitalize()
-                productos_lista.append(f"• {producto_nombre} - Cantidad: {row.iloc[2]} - Precio: ${row.iloc[1]}")
+                nombre = str(row[col_producto]).strip().capitalize()
+                cantidad = row[col_cantidad]
+                precio = row[col_precio]
+                productos_lista.append(f"• {nombre} - Cantidad: {cantidad} - Precio: ${precio}")
             response_text = "<b>Catálogo disponible:</b><br>" + "<br>".join(productos_lista)
         except Exception as e:
             app.logger.error(f"Error procesando el formato del catálogo: {str(e)}")
             response_text = "Hubo un problema al leer las columnas de la planilla."
     else:
-        match = df[df.astype(str).apply(lambda x: x.str.contains(user_message, case=False)).any(axis=1)]
+        # Búsqueda parcial flexible (funciona con "pla", "emp", etc.)
+        match = df[df[col_producto].astype(str).str.lower().str.contains(user_message, na=False)]
         if not match.empty:
             resultados = []
             for index, row in match.iterrows():
-                producto_nombre = str(row.iloc[0]).strip().capitalize()
-                resultados.append(f"<b>{producto_nombre}</b>: Cantidad: {row.iloc[2]} | Precio: ${row.iloc[1]}")
+                nombre = str(row[col_producto]).strip().capitalize()
+                cantidad = row[col_cantidad]
+                precio = row[col_precio]
+                resultados.append(f"<b>{nombre}</b>: Cantidad: {cantidad} | Precio: ${precio}")
             response_text = "<br>".join(resultados)
         else:
             response_text = f"No encontré productos que coincidan con '{user_message}'. Escribe 'cat' para ver el catálogo completo."
