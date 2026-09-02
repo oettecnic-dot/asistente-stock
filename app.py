@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 import pandas as pd
 import requests
 from flask import Flask, request, jsonify, render_template_string
+from twilio.twiml.messaging_response import MessagingResponse
 
 app = Flask(__name__)
 
@@ -26,7 +27,7 @@ app.logger.info('Iniciando aplicación de Asistente de Stock...')
 # ==========================================
 # 2. CONFIGURACIÓN DE GOOGLE SHEETS
 # ==========================================
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUl-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUI-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
 
 def obtener_datos_stock():
     try:
@@ -110,38 +111,20 @@ HTML_CHAT = """
 """
 
 # ==========================================
-# 4. RUTAS DE LA APLICACIÓN
+# 4. LÓGICA DE RESPUESTA (COMPARTIDA)
 # ==========================================
-@app.route("/", methods=["GET"])
-def home():
-    return render_template_string(HTML_CHAT)
-
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.get_json(silent=True)
-    user_message = ""
-
-    if data and "message" in data:
-        user_message = data.get("message", "").strip().lower()
-    else:
-        user_message = request.values.get("Body", "").strip().lower()
-
-    app.logger.info(f"Mensaje recibido del usuario: {user_message}")
-
+def procesar_mensaje_bot(user_message):
+    user_message = user_message.strip().lower()
     saludos = ['hola', 'buendia', 'buen dia', 'buenas', 'hi', 'hello']
 
     if user_message in saludos:
-        response_text = "¡Hola! 😊 ¿Qué producto deseas consultar hoy o prefieres ver el catálogo completo?"
-        return jsonify({"message": response_text})
+        return "¡Hola! 😊 ¿Qué producto deseas consultar hoy o prefieres ver el catálogo completo?"
 
     df = obtener_datos_stock()
     
     if df is None or df.empty:
-        return jsonify({"message": "Ocurrió un error al conectar con Google Sheets. Por favor, verifica el enlace o intenta más tarde."})
+        return "Ocurrió un error al conectar con Google Sheets. Por favor, verifica el enlace o intenta más tarde."
 
-    response_text = ""
-
-    # Columnas corregidas e invertidas (Columna 1: Cantidad, Columna 2: Precio)
     col_producto = df.columns[0]
     col_cantidad = df.columns[1]
     col_precio = df.columns[2]
@@ -154,10 +137,10 @@ def webhook():
                 cantidad = row[col_cantidad]
                 precio = row[col_precio]
                 productos_lista.append(f"• {nombre} - Cantidad: {cantidad} - Precio: ${precio}")
-            response_text = "<b>Catálogo disponible:</b><br>" + "<br>".join(productos_lista)
+            return "Catálogo disponible:\n" + "\n".join(productos_lista)
         except Exception as e:
-            app.logger.error(f"Error procesando el formato del catálogo: {str(e)}")
-            response_text = "Hubo un problema al leer las columnas de la planilla."
+            app.logger.error(f"Error procesando catálogo: {str(e)}")
+            return "Hubo un problema al leer las columnas de la planilla."
     else:
         match = df[df[col_producto].astype(str).str.lower().str.contains(user_message, na=False)]
         if not match.empty:
@@ -166,12 +149,37 @@ def webhook():
                 nombre = str(row[col_producto]).strip().capitalize()
                 cantidad = row[col_cantidad]
                 precio = row[col_precio]
-                resultados.append(f"<b>{nombre}</b>: Cantidad: {cantidad} | Precio: ${precio}")
-            response_text = "<br>".join(resultados)
+                resultados.append(f"*{nombre}*: Cantidad: {cantidad} | Precio: ${precio}")
+            return "\n".join(resultados)
         else:
-            response_text = f"No encontré productos que coincidan con '{user_message}'. Escribe 'cat' para ver el catálogo completo."
+            return f"No encontré productos que coincidan con '{user_message}'. Escribe 'cat' para ver el catálogo completo."
 
-    return jsonify({"message": response_text})
+# ==========================================
+# 5. RUTAS DE LA APLICACIÓN
+# ==========================================
+@app.route("/", methods=["GET"])
+def home():
+    return render_template_string(HTML_CHAT)
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    # Detecta si viene desde la web o desde WhatsApp de Twilio
+    data = request.get_json(silent=True)
+    user_message = ""
+
+    if data and "message" in data:
+        user_message = data.get("message", "")
+    else:
+        # Petición entrante de WhatsApp vía Twilio
+        user_message = request.form.get("Body", "")
+        resp = MessagingResponse()
+        respuesta_texto = procesar_mensaje_bot(user_message)
+        resp.message(respuesta_texto)
+        return str(resp)
+
+    app.logger.info(f"Mensaje recibido del usuario (Web): {user_message}")
+    respuesta_texto = procesar_mensaje_bot(user_message)
+    return jsonify({"message": respuesta_texto.replace("\n", "<br>")})
 
 if __name__ == "__main__":
     app.run(debug=True) 
