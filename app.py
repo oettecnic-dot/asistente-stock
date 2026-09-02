@@ -1,4 +1,4 @@
- import os
+import os
 import logging
 from logging.handlers import RotatingFileHandler
 import pandas as pd
@@ -163,4 +163,4 @@ def webhook():
     return jsonify({"message": response_text})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True) 
