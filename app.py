@@ -27,7 +27,7 @@ app.logger.info('Iniciando aplicación de Asistente de Stock...')
 # ==========================================
 # 2. CONFIGURACIÓN DE GOOGLE SHEETS
 # ==========================================
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUI-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUl-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
 
 def obtener_datos_stock():
     try:
