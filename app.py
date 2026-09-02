@@ -26,12 +26,11 @@ app.logger.info('Iniciando aplicación de Asistente de Stock...')
 # ==========================================
 # 2. CONFIGURACIÓN DE GOOGLE SHEETS
 # ==========================================
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUl-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_bXNhxKs2BYMhNfwD1oNxm6Ao3rUI-BQeNqVUBLNKXBMDfEezr9L5KRtJfnYOpYnvGa6HbP99g-r4/pub?output=csv"
 
 def obtener_datos_stock():
     try:
         df = pd.read_csv(SHEET_CSV_URL)
-        # Limpiar espacios en los nombres de las columnas por seguridad
         df.columns = df.columns.str.strip()
         app.logger.info("Datos de Google Sheets cargados exitosamente.")
         return df
@@ -129,7 +128,6 @@ def webhook():
 
     app.logger.info(f"Mensaje recibido del usuario: {user_message}")
 
-    # Lista de saludos
     saludos = ['hola', 'buendia', 'buen dia', 'buenas', 'hi', 'hello']
 
     if user_message in saludos:
@@ -143,10 +141,10 @@ def webhook():
 
     response_text = ""
 
-    # Asumimos las columnas por su posición segura (0: Producto, 1: Precio, 2: Cantidad)
+    # Columnas corregidas e invertidas (Columna 1: Cantidad, Columna 2: Precio)
     col_producto = df.columns[0]
-    col_precio = df.columns[1]
-    col_cantidad = df.columns[2]
+    col_cantidad = df.columns[1]
+    col_precio = df.columns[2]
 
     if "cat" in user_message or "catalogo" in user_message or "catálogo" in user_message:
         try:
@@ -161,7 +159,6 @@ def webhook():
             app.logger.error(f"Error procesando el formato del catálogo: {str(e)}")
             response_text = "Hubo un problema al leer las columnas de la planilla."
     else:
-        # Búsqueda parcial flexible (funciona con "pla", "emp", etc.)
         match = df[df[col_producto].astype(str).str.lower().str.contains(user_message, na=False)]
         if not match.empty:
             resultados = []
